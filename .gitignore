@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Caches and testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments
+backend/venv/
+venv/
+.venv/
+env/
+ENV/
+
+# Node dependencies and build output
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# SQLite databases & runtime test databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime file uploads (preserve directory structure)
+uploads/*
+!uploads/.gitkeep
+
+# Large installers and binary tool archives
+scripts/installers/
+*.exe
+*.zip
+
+# Temporary scratch and debugging scripts
+scripts/scratch/
+
+# Environment variables and credentials
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# Editor and OS metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

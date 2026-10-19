@@ -1,0 +1,142 @@
+[
+  {
+    "source_id": "X00016469670",
+    "file_path": "data/sroie_subset/img\\X00016469670.jpg",
+    "ground_truth_merchant": "OJC MARKETING SDN BHD",
+    "ground_truth_date": "15/01/2019",
+    "ground_truth_amount": "193.00"
+  },
+  {
+    "source_id": "X00016469671",
+    "file_path": "data/sroie_subset/img\\X00016469671.jpg",
+    "ground_truth_merchant": "OJC MARKETING SDN BHD",
+    "ground_truth_date": "02/01/2019",
+    "ground_truth_amount": "170.00"
+  },
+  {
+    "source_id": "X51005200931",
+    "file_path": "data/sroie_subset/img\\X51005200931.jpg",
+    "ground_truth_merchant": "PERNIAGAAN ZHENG HUI",
+    "ground_truth_date": "09/02/2018",
+    "ground_truth_amount": "436.20"
+  },
+  {
+    "source_id": "X51005230605",
+    "file_path": "data/sroie_subset/img\\X51005230605.jpg",
+    "ground_truth_merchant": "PETRON BKT LANJAN SB",
+    "ground_truth_date": "01/02/2018",
+    "ground_truth_amount": "4.90"
+  },
+  {
+    "source_id": "X51005230616",
+    "file_path": "data/sroie_subset/img\\X51005230616.jpg",
+    "ground_truth_merchant": "GERBANG ALAF RESTAURANTS SDN BHD",
+    "ground_truth_date": "18/01/2018",
+    "ground_truth_amount": "38.90"
+  },
+  {
+    "source_id": "X51005230621",
+    "file_path": "data/sroie_subset/img\\X51005230621.jpg",
+    "ground_truth_merchant": "SIN LIANHAP SDN BHD",
+    "ground_truth_date": "05/02/2018",
+    "ground_truth_amount": "7.30"
+  },
+  {
+    "source_id": "X51005230648",
+    "file_path": "data/sroie_subset/img\\X51005230648.jpg",
+    "ground_truth_merchant": "CROSS CHANNEL NETWORK SDN. BHD.",
+    "ground_truth_date": "29/01/2018",
+    "ground_truth_amount": "6.35"
+  },
+  {
+    "source_id": "X51005230657",
+    "file_path": "data/sroie_subset/img\\X51005230657.jpg",
+    "ground_truth_merchant": "CROSS CHANNEL NETWORK SDN. BHD.",
+    "ground_truth_date": "31/12/2017",
+    "ground_truth_amount": "7.95"
+  },
+  {
+    "source_id": "X51005230659",
+    "file_path": "data/sroie_subset/img\\X51005230659.jpg",
+    "ground_truth_merchant": "SWC ENTERPRISE SDN BHD",
+    "ground_truth_date": "08/01/2018",
+    "ground_truth_amount": "8.00"
+  },
+  {
+    "source_id": "X51005268275",
+    "file_path": "data/sroie_subset/img\\X51005268275.jpg",
+    "ground_truth_merchant": "LIGHTROOM GALLERY SDN BHD",
+    "ground_truth_date": "20/11/2017",
+    "ground_truth_amount": "278.80"
+  },
+  {
+    "source_id": "X51005268408",
+    "file_path": "data/sroie_subset/img\\X51005268408.jpg",
+    "ground_truth_merchant": "99 SPEED MART S/B",
+    "ground_truth_date": "20-11-17",
+    "ground_truth_amount": "169.80"
+  },
+  {
+    "source_id": "X51005288570",
+    "file_path": "data/sroie_subset/img\\X51005288570.jpg",
+    "ground_truth_merchant": "SECURE PARKING CORPORATION S/B",
+    "ground_truth_date": "23.03.18",
+    "ground_truth_amount": "1.00"
+  },
+  {
+    "source_id": "X51005301666",
+    "file_path": "data/sroie_subset/img\\X51005301666.jpg",
+    "ground_truth_merchant": "LIGHTROOM GALLERY SDN BHD",
+    "ground_truth_date": "20/11/2017",
+    "ground_truth_amount": "278.80"
+  },
+  {
+    "source_id": "X51005337867",
+    "file_path": "data/sroie_subset/img\\X51005337867.jpg",
+    "ground_truth_merchant": "OLD TOWN KOPITAM SND BHD",
+    "ground_truth_date": "22 MAR 18",
+    "ground_truth_amount": "30.25"
+  },
+  {
+    "source_id": "X51005337877",
+    "file_path": "data/sroie_subset/img\\X51005337877.jpg",
+    "ground_truth_merchant": "UROKO JAPANESE CUISINE SDN BHD",
+    "ground_truth_date": "20/03/2018",
+    "ground_truth_amount": "53.00"
+  },
+  {
+    "source_id": "X51005361906",
+    "file_path": "data/sroie_subset/img\\X51005361906.jpg",
+    "ground_truth_merchant": "TED HENG STATIONERY & BOOKS",
+    "ground_truth_date": "27/01/2018",
+    "ground_truth_amount": "27.35"
+  },
+  {
+    "source_id": "X51005361908",
+    "file_path": "data/sroie_subset/img\\X51005361908.jpg",
+    "ground_truth_merchant": "TEO HENG STATIONERY & BOOKS",
+    "ground_truth_date": "15/03/2018",
+    "ground_truth_amount": "127.20"
+  },
+  {
+    "source_id": "X51005361912",
+    "file_path": "data/sroie_subset/img\\X51005361912.jpg",
+    "ground_truth_merchant": "TEO HENG STATIONERY & BOOKS",
+    "ground_truth_date": "29/01/2018",
+    "ground_truth_amount": "1.05"
+  },
+  {
+    "source_id": "X51005361923",
+    "file_path": "data/sroie_subset/img\\X51005361923.jpg",
+    "ground_truth_merchant": "SWC ENTERPRISE SDN BHD",
+    "ground_truth_date": "02/01/2018",
+    "ground_truth_amount": "4.20"
+  },
+  {
+    "source_id": "X51005365187",
+    "file_path": "data/sroie_subset/img\\X51005365187.jpg",
+    "ground_truth_merchant": "F&P PHARMACY",
+    "ground_truth_date": "02/03/2018",
+    "ground_truth_amount": "31.90"
+  }
+]

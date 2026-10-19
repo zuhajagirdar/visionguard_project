@@ -1,0 +1,159 @@
+{
+  "dataset_used": "SROIE datasetv2 (Subset)",
+  "total_documents": 20,
+  "failed_unreadable": 0,
+  "fields": {
+    "merchant": {
+      "exact": 7,
+      "normalized": 0
+    },
+    "date": {
+      "exact": 13,
+      "normalized": 3
+    },
+    "amount": {
+      "exact": 14,
+      "normalized": 0
+    }
+  },
+  "error_cases": [
+    {
+      "document_id": "X00016469670",
+      "error_type": "wrong merchant",
+      "expected": "OJC MARKETING SDN BHD",
+      "extracted": "tan chay yee"
+    },
+    {
+      "document_id": "X00016469670",
+      "error_type": "wrong amount",
+      "expected": "193.00",
+      "extracted": "81750.00"
+    },
+    {
+      "document_id": "X00016469671",
+      "error_type": "wrong merchant",
+      "expected": "OJC MARKETING SDN BHD",
+      "extracted": "tan chay yee"
+    },
+    {
+      "document_id": "X51005200931",
+      "error_type": "wrong merchant",
+      "expected": "PERNIAGAAN ZHENG HUI",
+      "extracted": "PERNIAGAAN ZHENG HU!"
+    },
+    {
+      "document_id": "X51005200931",
+      "error_type": "wrong date",
+      "expected": "09/02/2018",
+      "extracted": "09/02/2078"
+    },
+    {
+      "document_id": "X51005230605",
+      "error_type": "wrong amount",
+      "expected": "4.90",
+      "extracted": "6.00"
+    },
+    {
+      "document_id": "X51005230616",
+      "error_type": "wrong merchant",
+      "expected": "GERBANG ALAF RESTAURANTS SDN BHD",
+      "extracted": "B psez."
+    },
+    {
+      "document_id": "X51005230621",
+      "error_type": "wrong merchant",
+      "expected": "SIN LIANHAP SDN BHD",
+      "extracted": "SIN LIANHAP SDN GHD"
+    },
+    {
+      "document_id": "X51005230621",
+      "error_type": "wrong date",
+      "expected": "05/02/2018",
+      "extracted": "08/08/2018"
+    },
+    {
+      "document_id": "X51005230648",
+      "error_type": "wrong amount",
+      "expected": "6.35",
+      "extracted": "6.36"
+    },
+    {
+      "document_id": "X51005230657",
+      "error_type": "wrong merchant",
+      "expected": "CROSS CHANNEL NETWORK SDN. BHD.",
+      "extracted": "CROSS CHANNEL NE/WORK SDN. BHD."
+    },
+    {
+      "document_id": "X51005268408",
+      "error_type": "wrong merchant",
+      "expected": "99 SPEED MART S/B",
+      "extracted": ". 28L1, JALAN ANGSA,"
+    },
+    {
+      "document_id": "X51005268408",
+      "error_type": "wrong amount",
+      "expected": "169.80",
+      "extracted": "160.47"
+    },
+    {
+      "document_id": "X51005288570",
+      "error_type": "wrong merchant",
+      "expected": "SECURE PARKING CORPORATION S/B",
+      "extracted": "SECURE"
+    },
+    {
+      "document_id": "X51005288570",
+      "error_type": "wrong amount",
+      "expected": "1.00",
+      "extracted": "23.03"
+    },
+    {
+      "document_id": "X51005337867",
+      "error_type": "wrong merchant",
+      "expected": "OLD TOWN KOPITAM SND BHD",
+      "extracted": "OLDTOWN WHITE COFFEE"
+    },
+    {
+      "document_id": "X51005337877",
+      "error_type": "wrong merchant",
+      "expected": "UROKO JAPANESE CUISINE SDN BHD",
+      "extracted": "WR eR Ro Dyer 5:"
+    },
+    {
+      "document_id": "X51005361906",
+      "error_type": "wrong merchant",
+      "expected": "TED HENG STATIONERY & BOOKS",
+      "extracted": "TEO HENG a f"
+    },
+    {
+      "document_id": "X51005361908",
+      "error_type": "wrong merchant",
+      "expected": "TEO HENG STATIONERY & BOOKS",
+      "extracted": "CASH"
+    },
+    {
+      "document_id": "X51005361908",
+      "error_type": "wrong date",
+      "expected": "15/03/2018",
+      "extracted": "16/03/2018"
+    },
+    {
+      "document_id": "X51005361908",
+      "error_type": "wrong amount",
+      "expected": "127.20",
+      "extracted": "420.00"
+    },
+    {
+      "document_id": "X51005361912",
+      "error_type": "wrong merchant",
+      "expected": "TEO HENG STATIONERY & BOOKS",
+      "extracted": "TEO HENG STATIONERY 6 aus"
+    },
+    {
+      "document_id": "X51005361923",
+      "error_type": "wrong date",
+      "expected": "02/01/2018",
+      "extracted": "92/01/2018"
+    }
+  ]
+}
