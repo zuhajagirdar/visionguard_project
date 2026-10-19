@@ -1,48 +1,151 @@
-# Expense Reimbursement System (Buildathon 2.0)
+# Veriflow
+### Expense Reimbursement & Document Verification System
 
-## 1. What was built
-This is a full-stack web application designed for Expense Reimbursement / Expense Claim Verification. It allows Submitters to create requests and upload documents, which are automatically processed using OCR to extract key fields (Merchant, Date, Amount). It includes automated verification checks (completeness, field consistency) and routes requests to Reviewers who can approve, reject, or request corrections. 
-It integrates grounded GenAI to answer contextual questions about claims and includes an Intelligent Correction Assistant that drafts correction messages based on verification flags.
 
-## 2. How to run it
-### Backend (FastAPI + SQLite)
-1. Navigate to `backend/`
-2. Activate the virtual environment: `.\venv\Scripts\Activate.ps1`
-3. Set your API Key: `$env:GEMINI_API_KEY="your_key"`
-4. Run the server: `uvicorn main:app --port 8000 --reload`
+Veriflow is a web application that helps organizations manage expense reimbursement requests, verify supporting documents, and handle approval workflows.
 
-### Frontend (React + Vite + TailwindCSS)
-1. Navigate to `frontend/`
-2. Install dependencies: `npm install`
-3. Run the development server: `npm run dev`
+Users can submit expense claims with receipts or other supporting documents. The system extracts key information from uploaded documents, checks for missing or mismatched details, and helps reviewers make informed decisions. It also includes an AI-assisted correction feature that drafts messages when a claim needs additional information or changes.
 
-## 3. Demo credentials
-- **Submitter:** username `submitter_demo`, role `Submitter`
-- **Reviewer:** username `reviewer_demo`, role `Reviewer`
-*(Create these via the `/users/` API endpoint on first run if they don't exist in SQLite)*
+## Features
 
-## 4. Environment variables required
-- `GEMINI_API_KEY`: Google Gemini API key for grounded GenAI and the Intelligent Correction Assistant.
+- **Expense Claim Submission:** Create reimbursement requests and upload supporting documents.
+- **OCR-Based Data Extraction:** Extract merchant names, dates, and amounts from receipts.
+- **Automated Verification:** Identify missing fields and inconsistencies between claims and documents.
+- **Review and Approval Workflow:** Allow reviewers to inspect claims, request corrections, approve requests, or reject them.
+- **Intelligent Correction Assistant:** Draft correction messages based on failed verification checks, with the option for reviewers to edit them.
+- **Claim Q&A:** Answer questions about claims using information available in the application.
+- **OCR Evaluation Dashboard:** View extraction results and error cases from the SROIE dataset subset.
 
-## 5. Test results
-Run `pytest` in the `backend/` folder to execute unit tests. End-to-end tests demonstrate validation, missing fields catching, and successful/rejected workflow states.
+## Tech Stack
 
-## 6. ML evaluation results
-Available in `docs/evaluation.md`. Based on a held-out synthetic dataset, PyTesseract extracted total amounts with 87% accuracy and dates with 92% accuracy on clear documents.
+| Component | Technology |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS |
+| Backend | Python, FastAPI |
+| Database | SQLite, SQLAlchemy |
+| OCR | PyTesseract, regex-based extraction |
+| AI Integration | Google Gemini API |
 
-## 7. Innovation implemented
-**Intelligent Correction Assistant:** When verification checks fail (e.g., mismatched amount or missing date), the system automatically uses GenAI to draft a contextual correction message to the Submitter. The reviewer can edit this draft before sending, saving time and standardising communication.
+## Getting Started
 
-## 8. Known limitations
-- The OCR currently falls back to regex and PyTesseract due to `paddlepaddle` availability on this environment.
-- The UI is a scaffolded React app; a fully flushed-out multi-screen routing setup needs further expansion for production deployment.
+### Prerequisites
 
-## 9. Main files/modules
-- `backend/main.py`: FastAPI server and endpoints.
-- `backend/models.py`: SQLAlchemy database models (Request, Document, DocumentVersion, ExtractedField, VerificationCheck).
-- `backend/ocr.py`: PyTesseract extraction logic.
-- `backend/llm.py`: Grounded GenAI connection and Innovation logic.
-- `frontend/src/`: React frontend.
+Install the following:
 
-## 10. Final requirements checklist
-Available in `docs/requirements-checklist.md`.
+- Python
+- Node.js and npm
+- Tesseract OCR
+- A Google Gemini API key for AI-assisted features
+
+### 1. Start the Backend
+
+Open a terminal in the project directory:
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+$env:GEMINI_API_KEY="your_key"
+uvicorn main:app --port 8000 --reload
+```
+
+Replace `your_key` with your own Gemini API key. Keep the key private and do not commit it to GitHub.
+
+If the virtual environment does not exist, create it and install the dependencies using the project's dependency files.
+
+### 2. Start the Frontend
+
+Open a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the local URL displayed by Vite in the terminal.
+
+## Demo Accounts
+
+The application supports two roles:
+
+- **Submitter:** `submitter_demo`
+- **Reviewer:** `reviewer_demo`
+
+If these accounts are not present in the local database, they may need to be created through the `/users/` API endpoint according to the application's authentication requirements.
+
+## Environment Variables
+
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | Enables Gemini-powered claim Q&A and correction assistance. |
+
+Store credentials in environment variables rather than hardcoding them in source files.
+
+## Testing
+
+Run the backend tests from the `backend` directory:
+
+```powershell
+python -m pytest tests/ -v
+```
+
+Run the end-to-end workflow verification script from the project root:
+
+```powershell
+python verify_workflow.py
+```
+
+Build the frontend from the `frontend` directory:
+
+```powershell
+npm run build
+```
+
+These commands help verify backend behavior, reimbursement workflows, and frontend build compatibility.
+
+## OCR Evaluation
+
+The project includes an OCR evaluation using a held-out synthetic dataset. The reported results are:
+
+- **Amount extraction accuracy:** 87% on clear documents.
+- **Date extraction accuracy:** 92% on clear documents.
+
+Results may vary with image quality, receipt layout, and formatting. These figures apply to the evaluated dataset and do not guarantee the same accuracy on all real-world documents.
+
+See [`docs/evaluation.md`](docs/evaluation.md) for further details.
+
+## Current Limitations
+
+- The OCR pipeline currently relies on PyTesseract and regex-based extraction because PaddlePaddle was unavailable in the development environment.
+- Poor image quality and unusual receipt layouts may affect extraction accuracy.
+- The frontend needs further development before production deployment.
+- Additional testing with real-world documents and a production-ready deployment setup are still required.
+
+## Project Structure
+
+```text
+.
+├── backend/
+│   ├── main.py
+│   ├── models.py
+│   ├── ocr.py
+│   └── llm.py
+├── frontend/
+│   └── src/
+├── docs/
+│   ├── evaluation.md
+│   └── requirements-checklist.md
+├── scripts/
+└── verify_workflow.py
+```
+
+## Documentation
+
+- [OCR Evaluation](docs/evaluation.md)
+- [Requirements Checklist](docs/requirements-checklist.md)
+
+## About the Project
+
+Veriflow explores how document extraction, automated verification, and AI-assisted communication can make expense reimbursement reviews more consistent and easier to manage.
+
+Developed as part of **Buildathon 2.0**.
