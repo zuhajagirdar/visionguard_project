@@ -1,19 +1,26 @@
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
-from sqlalchemy.orm import Session
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import models, schemas, database, ocr
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from backend import models, schemas, database, ocr
 import datetime
 import os
-import llm
+from backend import llm
 import shutil
 import re
+
 
 UPLOAD_DIR = "../uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
-
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 security = HTTPBearer()
 
@@ -77,7 +84,8 @@ def create_request(req: schemas.RequestCreate, current_user: models.User = Depen
 
 
 
-import re
+# Removed redundant date parsing block that overwrote filtered date
+
 
 def normalize_merchant(name: str):
     if not name: return ""
@@ -86,6 +94,17 @@ def normalize_merchant(name: str):
     name = re.sub(r'\b(inc|llc|corp|co|ltd|company)\b', '', name)
     name = re.sub(r'\s+', ' ', name).strip()
     return name
+
+def normalize_date(date_str: str) -> str:
+    """Parse date strings (day‑first preferred) to ISO YYYY‑MM‑DD.
+    Returns an empty string for invalid or future dates.
+    """
+    # Reuse OCR's robust date parsing logic.
+    from backend import ocr
+    return ocr._parse_date(date_str)
+
+
+
 
 def run_verifications(db: Session, req_id: int):
     db.query(models.VerificationCheck).filter(models.VerificationCheck.request_id == req_id).delete(synchronize_session=False)
@@ -463,9 +482,6 @@ def correct_field(req_id: int, field_id: int, new_value: str, current_user: mode
         db.commit()
         run_verifications(db, req.id)
     return {"status": "corrected"}
-
-from typing import List, Optional
-from sqlalchemy import func
 
 from typing import List, Optional
 from sqlalchemy import func

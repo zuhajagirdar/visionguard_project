@@ -1,5 +1,5 @@
 import pytest
-from test_main import client, create_user_get_token, auth_header, TestingSessionLocal, engine
+from .test_main import client, create_user_get_token, auth_header, TestingSessionLocal, engine
 from database import Base
 import models
 import os

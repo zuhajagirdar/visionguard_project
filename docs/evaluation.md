@@ -15,8 +15,9 @@
 
 ## Results
 - **Exact / Normalised Field Matches:**
-  - Amount: 87% (43.5/50)
-  - Date: 92% (46/50)
-  - Merchant: 75% (37.5/50)
+  - Merchant: 35% (7/20) exact, 40% (8/20) normalised
+  - Date: 65% (13/20) exact, 75% (15/20) normalised
+  - Amount: 70% (14/20) exact & normalised
+
 - **Missing-field errors:** Typically occurred on highly stylized receipt fonts or skewed scans.
 - **Correction cases:** Demonstrated effectively through the Intelligent Correction Assistant pipeline which drafted messages for the remaining failed cases.

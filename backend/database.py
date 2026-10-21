@@ -27,11 +27,7 @@ engine = create_engine(
 # Declarative base
 Base = declarative_base()
 
-# Import models to ensure tables are registered
-import models as _models  # noqa: F401
 
-# Ensure all tables are created (especially for fresh test DB)
-Base.metadata.create_all(bind=engine)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

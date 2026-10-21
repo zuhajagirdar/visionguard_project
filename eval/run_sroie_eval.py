@@ -1,111 +1,97 @@
-import os
-import json
-import sys
-import glob
-import re
+import os, json, re, sys
 from datetime import datetime
 
+# Ensure backend is on PYTHONPATH for OCR import
 sys.path.append(os.path.abspath('backend'))
 import ocr
 
 def normalize_merchant(val):
-    if val is None: return None
-    return str(val).strip().lower()
+    if not val:
+        return ''
+    return re.sub(r'[^\w\s]', '', str(val)).lower().strip()
 
 def normalize_amount(val):
-    if val is None: return None
+    if not val:
+        return None
     try:
-        clean_val = re.sub(r'[^\d\.]', '', str(val))
-        return float(clean_val)
+        clean = re.sub(r'[^\d\.]', '', str(val))
+        return float(clean)
     except ValueError:
         return None
 
 def normalize_date(val):
-    if val is None or str(val).lower() == 'unknown': return None
-    try:
-        dt = datetime.strptime(str(val), '%Y-%m-%d')
-        return dt.strftime('%Y-%m-%d')
-    except ValueError:
+    if not val:
         return None
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%y', '%d.%m.%Y'):
+        try:
+            dt = datetime.strptime(str(val), fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    return None
 
 def main():
-    sroie_img_dir = 'eval/sroie_data/img'
-    sroie_key_dir = 'eval/sroie_data/key'
-    
-    if not os.path.exists(sroie_img_dir) or not os.path.exists(sroie_key_dir):
-        print("ERROR: SROIE dataset could not be accessed.")
-        print("The PS-provided D1: SROIE datasetv2 is not locally available in the expected directory.")
-        print("Please download the SROIE dataset (Task 3 Key Information Extraction) and place it in:")
-        print(" - eval/sroie_data/img/*.jpg")
-        print(" - eval/sroie_data/key/*.txt")
+    manifest_path = os.path.join('eval', 'manifest.json')
+    if not os.path.exists(manifest_path):
+        print('ERROR: manifest.json not found.')
         sys.exit(1)
-        
-    img_files = glob.glob(os.path.join(sroie_img_dir, '*.jpg'))
-    if not img_files:
-        print("ERROR: No images found in SROIE dataset directory.")
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        manifest = json.load(f)
+    if not isinstance(manifest, list) or len(manifest) == 0:
+        print('ERROR: manifest is empty or malformed.')
         sys.exit(1)
-        
+
     results = {
-        'total': len(img_files),
+        'total_documents': len(manifest),
         'merchant': {'exact': 0, 'normalized': 0},
         'date': {'exact': 0, 'normalized': 0},
         'amount': {'exact': 0, 'normalized': 0},
-        'failures': [],
-        'mismatches': []
+        'error_cases': []
     }
-    
-    print(f"Running OCR Evaluation Pipeline on {len(img_files)} SROIE documents...")
-    
-    for img_path in img_files:
-        base_name = os.path.basename(img_path).replace('.jpg', '')
-        key_path = os.path.join(sroie_key_dir, f"{base_name}.txt")
-        
-        if not os.path.exists(key_path):
+
+    for entry in manifest:
+        img_path = entry.get('file_path')
+        if not img_path or not os.path.exists(img_path):
+            results['error_cases'].append({
+                'document_id': entry.get('source_id'),
+                'error_type': 'missing_image',
+                'detail': f"Image not found at {img_path}"
+            })
             continue
-            
-        with open(key_path, 'r', encoding='utf-8') as f:
-            try:
-                gt = json.load(f)
-            except json.JSONDecodeError:
-                continue
-                
-        expected_merchant = gt.get('company', 'Unknown')
-        expected_date = gt.get('date', 'Unknown')
-        expected_amount = gt.get('total', '0.0')
-        
+        gt_merchant = entry.get('ground_truth_merchant')
+        gt_date = entry.get('ground_truth_date')
+        gt_amount = entry.get('ground_truth_amount')
         try:
             extracted = ocr.extract_fields(img_path)
-            
-            # Merchant comparison
-            ex_merch = extracted.get('merchant', 'Unknown')
-            if str(ex_merch) == str(expected_merchant):
-                results['merchant']['exact'] += 1
-            if normalize_merchant(ex_merch) == normalize_merchant(expected_merchant):
-                results['merchant']['normalized'] += 1
-                
-            # Date comparison
-            ex_date = extracted.get('date', 'Unknown')
-            if str(ex_date) == str(expected_date):
-                results['date']['exact'] += 1
-            if normalize_date(ex_date) == normalize_date(expected_date):
-                results['date']['normalized'] += 1
-                
-            # Amount comparison
-            ex_amt = extracted.get('amount', '0.0')
-            if str(ex_amt) == str(expected_amount):
-                results['amount']['exact'] += 1
-            if normalize_amount(ex_amt) == normalize_amount(expected_amount):
-                results['amount']['normalized'] += 1
-                
         except Exception as e:
-            results['failures'].append({
-                'case': base_name,
-                'reason': f'OCR Error: {str(e)}'
+            results['error_cases'].append({
+                'document_id': entry.get('source_id'),
+                'error_type': 'ocr_failure',
+                'detail': str(e)
             })
+            continue
+        # Merchant
+        ex_merchant = extracted.get('merchant')
+        if ex_merchant == gt_merchant:
+            results['merchant']['exact'] += 1
+        if normalize_merchant(ex_merchant) == normalize_merchant(gt_merchant):
+            results['merchant']['normalized'] += 1
+        # Date
+        ex_date = extracted.get('date')
+        if ex_date == gt_date:
+            results['date']['exact'] += 1
+        if normalize_date(ex_date) == normalize_date(gt_date):
+            results['date']['normalized'] += 1
+        # Amount
+        ex_amount = extracted.get('amount')
+        if ex_amount == gt_amount:
+            results['amount']['exact'] += 1
+        if normalize_amount(ex_amount) == normalize_amount(gt_amount):
+            results['amount']['normalized'] += 1
 
     print(json.dumps(results, indent=2))
-    
-    with open('eval/sroie_results.json', 'w') as f:
+    out_path = os.path.join('eval', 'results.json')
+    with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)
 
 if __name__ == '__main__':
