@@ -2,15 +2,20 @@ export const API_BASE = "http://localhost:8000";
 
 export const api = {
   login: async (username, role) => {
-    await fetch(API_BASE + "/users/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, role })
-    });
+    if (role) {
+      try {
+        await fetch(API_BASE + "/users/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, role })
+        });
+      } catch (err) {
+        // proceed to token if user already exists
+      }
+    }
     
     const formData = new URLSearchParams();
     formData.append("username", username);
-    
     
     const res = await fetch(API_BASE + "/token", {
       method: "POST",
@@ -18,7 +23,10 @@ export const api = {
       body: formData
     });
     
-    if (!res.ok) throw new Error("Login failed");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Login failed");
+    }
     return res.json();
   },
 

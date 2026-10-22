@@ -26,7 +26,15 @@ def startup():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,6 +74,9 @@ def log_audit(db: Session, request_id: int, actor_id: int, action: str, old_stat
 
 @app.post("/users/", response_model=schemas.UserOut)
 def create_user(user: schemas.UserBase, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        return db_user
     db_user = models.User(username=user.username, role=user.role)
     db.add(db_user)
     db.commit()
@@ -641,7 +652,7 @@ def login_for_access_token(username: str = Form(...), db: Session = Depends(get_
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"access_token": str(user.id), "token_type": "bearer"}
+    return {"access_token": str(user.id), "token_type": "bearer", "role": user.role, "username": user.username}
 @app.get("/requests/{req_id}/details")
 def get_request_details(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_req = db.query(models.Request).filter(models.Request.id == req_id).first()

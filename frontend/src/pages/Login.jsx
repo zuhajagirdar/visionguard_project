@@ -21,9 +21,10 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const { access_token } = await api.login(username.trim()); // role not needed for backend login
-      localStorage.setItem('access_token', access_token);
-      login({ username: username.trim(), role });
+      const res = await api.login(username.trim(), role);
+      const userRole = res.role || role;
+      localStorage.setItem('access_token', res.access_token);
+      login({ username: username.trim(), role: userRole });
       navigate('/');
     } catch (err) {
       setError(err.message || 'Failed to login');
