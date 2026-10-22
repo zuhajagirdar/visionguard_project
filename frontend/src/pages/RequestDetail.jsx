@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { FileText, CheckCircle, XCircle, AlertCircle, History, MessageSquare, Cpu, FileClock } from 'lucide-react';
+import StatusBadge from '../components/StatusBadge';
+import { AlertCircle, CheckCircle, XCircle, FileText, Cpu, FileClock, History } from 'lucide-react';
+
 
 export default function RequestDetail() {
   const { id } = useParams();
@@ -112,7 +114,7 @@ export default function RequestDetail() {
     }
   };
 
-  const handleGenerateMessage = async () => { try { const res = await api.generateCorrectionMessage(id); setReviewReason(res.message); } catch (e) { alert(e.message); } };
+  // handleGenerateMessage removed – not used in UI
   const handleReview = async () => {
     try {
       await api.reviewRequest(id, { action: reviewAction, reason: reviewReason });
@@ -179,26 +181,14 @@ export default function RequestDetail() {
   
   if (!data) return <div className="p-8">No requests found.</div>;
 
-  const { request, documents, verifications, extractions, history, comments, information_required_reason } = data;
+  const { request, documents, verifications, extractions, history, information_required_reason } = data; // comments removed
   
   const canEdit = (user.role === 'Submitter') && (request.status === 'Draft' || request.status === 'More Information Required');
   const canReview = (user.role === 'Reviewer') && (request.status === 'Submitted' || request.status === 'Under Review' || request.status === 'Processing Failed');
   const canApprove = (user.role === 'Approver') && (request.status === 'Under Review');
   const canWithdraw = (user.role === 'Submitter') && request.submitter_id === user.id && !['Approved', 'Rejected', 'Withdrawn'].includes(request.status);
 
-  const getStatusBadge = (status) => {
-    const base = "inline-block px-3 py-1 rounded-full text-sm font-semibold border";
-    switch(status) {
-      case 'Draft': return `${base} bg-gray-100 text-gray-700 border-gray-300`;
-      case 'Submitted': return `${base} bg-blue-50 text-blue-700 border-blue-200`;
-      case 'Under Review': return `${base} bg-purple-50 text-purple-700 border-purple-200`;
-      case 'More Information Required': return `${base} bg-yellow-50 text-yellow-800 border-yellow-300`;
-      case 'Approved': return `${base} bg-green-50 text-green-700 border-green-200`;
-      case 'Rejected': return `${base} bg-red-50 text-red-700 border-red-200`;
-      case 'Processing Failed': return `${base} bg-orange-50 text-orange-800 border-orange-300`;
-      default: return `${base} bg-gray-100 text-gray-800 border-gray-300`;
-    }
-  };
+// Status badge is rendered via <StatusBadge status={status} /> component
 
   const getVerificationIcon = (result) => {
     if (result === 'PASS') return <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={18} />;
@@ -220,7 +210,7 @@ export default function RequestDetail() {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h2 className="text-2xl font-bold text-gray-900">Request #{request.id}</h2>
-            {getStatusBadge(request.status)}
+            <StatusBadge status={request.status} />
           </div>
           <p className="text-gray-500 font-medium">{request.type} Expense {request.category ? `• ${request.category}` : ''}</p>
         </div>
@@ -297,7 +287,25 @@ export default function RequestDetail() {
                 <form onSubmit={handleUpload} className="flex gap-2">
                   <input 
                     type="file" 
-                    onChange={e => setFile(e.target.files[0])} 
+                    onChange={e => {
+                      const selected = e.target.files[0];
+                      if (selected) {
+                        const maxSize = 10 * 1024 * 1024; // 10 MB
+                        const allowed = ['application/pdf','image/png','image/jpeg'];
+                        if (!allowed.includes(selected.type)) {
+                          setUploadError('Unsupported file type. Allowed: PDF, PNG, JPG.');
+                          setFile(null);
+                          return;
+                        }
+                        if (selected.size > maxSize) {
+                          setUploadError('File size exceeds 10 MB limit.');
+                          setFile(null);
+                          return;
+                        }
+                        setUploadError('');
+                        setFile(selected);
+                      }
+                    }} 
                     className="text-sm border p-1.5 rounded flex-1 text-gray-700 focus:outline-none focus:border-blue-500" 
                     accept=".pdf,.png,.jpg,.jpeg"
                   />
@@ -305,7 +313,8 @@ export default function RequestDetail() {
                     Upload
                   </button>
                 </form>
-                <p className="text-xs text-gray-400 mt-1">Supported formats: PDF, JPG, PNG. Old versions will be preserved.</p>
+                {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+                <p className="text-xs text-gray-400 mt-1">Supported formats: PDF, JPG, PNG (max 10 MB). Old versions will be preserved.</p>
               </div>
             )}
           </div>

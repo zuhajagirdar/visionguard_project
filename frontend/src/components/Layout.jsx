@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { LogOut, LayoutDashboard, PlusCircle, Inbox, FileText, Activity } from 'lucide-react';
+import { LogOut, LayoutDashboard, PlusCircle, Inbox, Activity } from 'lucide-react';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -29,27 +29,27 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      <aside className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col md:flex-row">
+      <aside className="w-full md:w-64 bg-surface border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-800">Expense Auth</h1>
-          <p className="text-sm text-gray-500 mt-1">Role: <span className="font-medium text-gray-700">{user?.role}</span></p>
-          <p className="text-sm text-gray-500">User: <span className="font-medium text-gray-700">{user?.username}</span></p>
+          <h1 className="text-xl font-bold text-gray-800">Veriflow</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Role: <span className="font-medium text-gray-700">{user?.role}</span>
+          </p>
+          <p className="text-sm text-gray-500">
+            User: <span className="font-medium text-gray-700">{user?.username}</span>
+          </p>
         </div>
-        
         <nav className="flex-1 p-4 space-y-1">
           <NavItem to="/" icon={LayoutDashboard}>Dashboard</NavItem>
-          
           {user?.role === 'Submitter' && (
             <NavItem to="/requests/new" icon={PlusCircle}>New Request</NavItem>
           )}
-          
           {(user?.role === 'Reviewer' || user?.role === 'Approver') && (
             <NavItem to="/review-queue" icon={Inbox}>Review Queue</NavItem>
           )}
           <NavItem to="/eval" icon={Activity}>SROIE Eval</NavItem>
         </nav>
-
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={handleLogout}
@@ -60,8 +60,7 @@ export default function Layout({ children }) {
           </button>
         </div>
       </aside>
-
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto p-6">
         {children}
       </main>
     </div>

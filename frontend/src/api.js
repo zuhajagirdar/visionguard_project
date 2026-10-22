@@ -10,7 +10,7 @@ export const api = {
     
     const formData = new URLSearchParams();
     formData.append("username", username);
-    formData.append("password", "dummy");
+    
     
     const res = await fetch(API_BASE + "/token", {
       method: "POST",

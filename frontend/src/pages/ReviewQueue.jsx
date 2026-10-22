@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
+import StatusBadge from '../components/StatusBadge';
 
 export default function ReviewQueue() {
   const { user } = useAuth();
@@ -151,11 +152,11 @@ export default function ReviewQueue() {
                     <div className="font-medium">{req.expense_amount ? `$${req.expense_amount.toFixed(2)}` : '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{req.expense_date || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(req.status)}`}>
-                      {req.status}
-                    </span>
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={req.status} /></td>
+
+                      
+                    
+                  
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link to={`/requests/${req.id}`} className="text-blue-600 hover:text-blue-900">
                       Review
