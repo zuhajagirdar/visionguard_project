@@ -1,9 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from backend import models, schemas, database, ocr
 import datetime
+from sqlalchemy import select
+import os
+import shutil
+import re
+
+app = FastAPI()
 import os
 from backend import llm
 import shutil
@@ -13,7 +19,11 @@ import re
 UPLOAD_DIR = "../uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app = FastAPI()
+@app.on_event("startup")
+def startup():
+    from backend import models, database
+    models.Base.metadata.create_all(bind=database.engine)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -253,7 +263,7 @@ def update_request(req_id: int, req_update: schemas.RequestUpdate, current_user:
     if db_req.status not in ["Draft", "More Information Required"]:
         raise HTTPException(status_code=400, detail=f"Cannot edit request in status {db_req.status}")
         
-    update_data = req_update.dict(exclude_unset=True)
+    update_data = req_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_req, key, value)
         
@@ -365,12 +375,12 @@ def process_request(req_id: int, current_user: models.User = Depends(get_current
                     ext_f = models.ExtractedField(extraction_run_id=run.id, field_name=k, original_value=str(v))
                     db.add(ext_f)
                 run.status = "Completed"
-                run.completed_at = datetime.datetime.utcnow()
+                run.completed_at = datetime.datetime.now(datetime.UTC)
                 latest_ver.processing_state = "Completed"
             except Exception as e:
                 run.status = "Failed"
                 run.error_message = str(e)
-                run.completed_at = datetime.datetime.utcnow()
+                run.completed_at = datetime.datetime.now(datetime.UTC)
                 latest_ver.processing_state = "Failed"
                 req.status = "Processing Failed"
                 log_audit(db, req.id, current_user.id, "process_fail", "Processing", "Processing Failed", str(e))
@@ -522,7 +532,8 @@ def get_requests(
 def get_dashboard(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role == "Submitter":
         base_query = db.query(models.Request).filter(models.Request.submitter_id == current_user.id)
-        req_ids_subquery = db.query(models.Request.id).filter(models.Request.submitter_id == current_user.id).subquery()
+        # Use explicit SELECT for subquery to avoid SAWarning
+        req_ids_subquery = select(models.Request.id).where(models.Request.submitter_id == current_user.id)
         
         missing_records = db.query(models.VerificationCheck).filter(
             models.VerificationCheck.category.in_(["unreadable", "missing"]),
@@ -648,7 +659,7 @@ def get_request_details(req_id: int, current_user: models.User = Depends(get_cur
         doc_details.append({
             "id": d.id,
             "original_filename": d.original_filename,
-            "versions": [{"id": v.id, "version_number": v.version_number, "processing_state": v.processing_state} for v in versions]
+            "versions": [{"id": v.id, "version_number": v.version_number, "processing_state": v.processing_state, "uploaded_at": v.timestamp.isoformat() if v.timestamp else None} for v in versions]
         })
         
     verifications = db.query(models.VerificationCheck).filter(models.VerificationCheck.request_id == req_id).all()
@@ -756,3 +767,48 @@ def generate_correction_message(req_id: int, current_user: models.User = Depends
         msg += f"- {v.rule_name}: {v.evidence}\n"
     
     return {"message": msg}
+
+@app.get("/requests/{req_id}/corrections", response_model=schemas.CorrectionAssistanceOut)
+def get_corrections(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Only reviewers or approvers may request correction assistance
+    if current_user.role not in ["Reviewer", "Approver"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions for correction assistance")
+    req = db.query(models.Request).filter(models.Request.id == req_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    # Gather latest extraction values per field
+    docs = db.query(models.Document).filter(models.Document.request_id == req_id).all()
+    extracted_vals = {}
+    corrected_vals = {}
+    for doc in docs:
+        latest_ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == doc.id).order_by(models.DocumentVersion.version_number.desc()).first()
+        if not latest_ver:
+            continue
+        run = db.query(models.ExtractionRun).filter(models.ExtractionRun.document_version_id == latest_ver.id).order_by(models.ExtractionRun.id.desc()).first()
+        if not run:
+            continue
+        fields = db.query(models.ExtractedField).filter(models.ExtractedField.extraction_run_id == run.id).all()
+        for f in fields:
+            extracted_vals[f.field_name] = f.original_value
+            if f.corrected_value is not None:
+                corrected_vals[f.field_name] = f.corrected_value
+    # Gather verification failures for context
+    verifs = db.query(models.VerificationCheck).filter(models.VerificationCheck.request_id == req_id).all()
+    failed_rules = [v.rule_name for v in verifs if v.result != "PASS"]
+    # Build suggestion objects
+    suggestions = []
+    for field_name, ex_val in extracted_vals.items():
+        suggestion = schemas.CorrectionSuggestion(
+            field_name=field_name,
+            extracted_value=ex_val,
+            corrected_value=corrected_vals.get(field_name),
+            evidence="Latest extraction from document"
+        )
+        suggestions.append(suggestion)
+    # Generate a friendly message via LLM (fallback if unavailable)
+    draft_msg = llm.generate_correction_draft(extracted_vals, failed_rules)
+    return schemas.CorrectionAssistanceOut(
+        request_id=req_id,
+        suggestions=suggestions,
+        message=draft_msg
+    )

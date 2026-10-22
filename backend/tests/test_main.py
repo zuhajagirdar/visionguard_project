@@ -1,16 +1,13 @@
 import pytest
-import sys
 import os
 import tempfile
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from main import app
-from database import Base
-from main import get_db
-import models
+from backend.main import app, get_db
+from backend.database import Base
+from backend import models
 import shutil
 
 # Use a dedicated temp file so tests never touch production reimbursement.db

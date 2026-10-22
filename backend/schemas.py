@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 import datetime as dt
@@ -9,8 +9,7 @@ class UserBase(BaseModel):
 
 class UserOut(UserBase):
     id: int
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RequestCreate(BaseModel):
     submitter_id: Optional[int] = None
@@ -41,8 +40,7 @@ class RequestOut(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: datetime
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class MissingField(BaseModel):
     field_name: str
@@ -66,3 +64,15 @@ class AskQuestion(BaseModel):
     user_id: Optional[int] = None
     question: str
 
+
+class CorrectionSuggestion(BaseModel):
+    field_name: str
+    extracted_value: Optional[str] = None
+    corrected_value: Optional[str] = None
+    evidence: str
+
+class CorrectionAssistanceOut(BaseModel):
+    request_id: int
+    suggestions: List[CorrectionSuggestion]
+    message: str
+    model_config = ConfigDict(from_attributes=True)

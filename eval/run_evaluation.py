@@ -4,8 +4,9 @@ import json
 import re
 from datetime import datetime
 
-sys.path.append(os.path.abspath('backend'))
-import ocr
+import os, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from backend import ocr
 
 def normalize_merchant(val):
     if not val: return ""
@@ -33,11 +34,12 @@ def normalize_amount(val):
         return None
 
 def main():
-    if not os.path.exists('eval/manifest.json'):
-        print("ERROR: eval/manifest.json not found.")
+    manifest_path = os.path.join(os.path.dirname(__file__), 'manifest.json')
+    if not os.path.isfile(manifest_path):
+        print("ERROR: manifest.json not found.")
         return
 
-    with open('eval/manifest.json', 'r', encoding='utf-8') as f:
+    with open(manifest_path, 'r', encoding='utf-8') as f:
         manifest = json.load(f)
 
     results = {
@@ -100,7 +102,8 @@ def main():
 
     # Note: GenAI evaluation is completely separated and explicitly omitted here.
 
-    with open('eval/results.json', 'w', encoding='utf-8') as f:
+    results_path = os.path.join(os.path.dirname(__file__), 'results.json')
+    with open(results_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)
 
     print("Evaluation executed. Output written to eval/results.json.")

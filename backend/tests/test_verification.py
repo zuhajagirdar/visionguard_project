@@ -1,13 +1,12 @@
 import pytest
-import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi.testclient import TestClient
-from main import app
-from database import Base
-from main import get_db
-import models
+from backend.main import app, run_verifications, get_db
+from backend.database import Base
+from backend import models
 from tests.test_main import engine, TestingSessionLocal, create_user_get_token, auth_header
+from gen_test_files import create_valid_pdf
 from gen_test_files import create_valid_pdf
 
 client = TestClient(app)

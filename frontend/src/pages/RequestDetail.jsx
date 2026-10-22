@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
@@ -18,7 +18,9 @@ export default function RequestDetail() {
   
   const [editForm, setEditForm] = useState({ merchant_name: '', expense_date: '', expense_amount: '' });
   const [file, setFile] = useState(null);
-  const [reviewAction, setReviewAction] = useState('approve');
+const [uploadError, setUploadError] = useState('');
+const [reviewAction, setReviewAction] = useState('approve');
+
   const [reviewReason, setReviewReason] = useState('');
   
   const [correctingFieldId, setCorrectingFieldId] = useState(null);
@@ -31,16 +33,13 @@ export default function RequestDetail() {
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
-
+  // Load data function defined before useEffect to avoid hoisting issues
   const loadData = async () => {
     try {
       setLoading(true);
       const details = await api.getRequestDetails(id);
       setData(details);
-      
+
       if (details.documents.length > 0 && details.documents[0].versions.length > 0) {
         const latestVersion = details.documents[0].versions[0];
         try {
@@ -62,6 +61,14 @@ export default function RequestDetail() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
+
+
+
+
 
   const handleUpdate = async (e) => {
     e.preventDefault();

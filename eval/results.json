@@ -1,117 +1,121 @@
 {
+  "dataset_used": "SROIE datasetv2 (Subset)",
   "total_documents": 20,
-  "merchant": {
-    "exact": 0,
-    "normalized": 0
-  },
-  "date": {
-    "exact": 0,
-    "normalized": 0
-  },
-  "amount": {
-    "exact": 0,
-    "normalized": 0
+  "failed_unreadable": 20,
+  "fields": {
+    "merchant": {
+      "exact": 0,
+      "normalized": 0
+    },
+    "date": {
+      "exact": 0,
+      "normalized": 0
+    },
+    "amount": {
+      "exact": 0,
+      "normalized": 0
+    }
   },
   "error_cases": [
     {
       "document_id": "X00016469670",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X00016469671",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005200931",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005230605",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005230616",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005230621",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005230648",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005230657",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005230659",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005268275",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005268408",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005288570",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005301666",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005337867",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005337877",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005361906",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005361908",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005361912",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005361923",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     },
     {
       "document_id": "X51005365187",
-      "error_type": "ocr_failure",
-      "detail": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "document processing failure",
+      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
     }
   ]
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { LayoutDashboard, PlusCircle, Inbox, FileText } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 
 export default function Dashboard() {
