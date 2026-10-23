@@ -443,9 +443,27 @@ npm run dev
 ### 3. Frontend Production Build Verification
 To verify the production bundle:
 ```powershell
-cd frontend
 npm run build
 ```
+
+### 4. Full-Stack Serverless Deployment on Vercel
+
+Veriflow is pre-configured for automated deployment on **Vercel** via GitHub integration:
+
+* **Repository:** `zuhajagirdar/visionguard_project`
+* **Vercel Project:** `visionguard-project`
+* **Architecture on Vercel:**
+  - **Frontend:** Built via root `package.json` and `vercel.json` (`cd frontend && npm install && npm run build`) and served statically from `frontend/dist`.
+  - **Serverless API:** Routed via `vercel.json` rewrites (`/api/(.*)` -> `api/index.py`), mounting the FastAPI backend as an ASGI serverless handler.
+  - **Database & Auto-Seeding:** Uses SQLite stored in writable `/tmp/data/reimbursement.db` with automatic seeding of demo accounts (`alice_sub`, `charlie_rev`, etc. with password `12345`). For permanent multi-instance persistence, configure an external `DATABASE_URL` (e.g., Supabase, Neon, or Turso) in Vercel Project Settings.
+  - **Document Storage:** Uploaded receipts are saved to writable `/tmp/uploads`.
+* **Vercel Dashboard Settings:**
+  - **Root Directory:** `./` (repository root)
+  - **Build Command:** Auto-configured via `vercel.json` (`npm run build`)
+  - **Output Directory:** `frontend/dist`
+  - **Environment Variables (Optional):**
+    - `GEMINI_API_KEY`: Google Gemini API key for online AI assistance.
+    - `DATABASE_URL`: Optional PostgreSQL/Supabase database URL for persistent production storage.
 
 ---
 

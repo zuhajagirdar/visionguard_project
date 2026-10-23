@@ -1,4 +1,6 @@
-export const API_BASE = "http://localhost:8000";
+export const API_BASE =
+  (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "") ||
+  (import.meta.env.DEV ? "http://localhost:8000" : "/api");
 
 export const api = {
   login: async (username, role, password) => {

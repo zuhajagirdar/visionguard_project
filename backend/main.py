@@ -1,85 +1,141 @@
+import os
+import sys
+import shutil
+import datetime
+import re
+from typing import Optional, List, Dict, Any
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Body
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+
+IS_VERCEL = bool(os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'))
+if IS_VERCEL:
+    UPLOAD_DIR = '/tmp/uploads'
+else:
+    UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads'))
+
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception:
+    pass
+
 def resolve_filepath(path: str) -> str:
     if os.path.isfile(path):
         return path
     candidates = [
         os.path.abspath(path),
+        os.path.join(UPLOAD_DIR, os.path.basename(path)),
+        os.path.join('/tmp/uploads', os.path.basename(path)),
         os.path.join(os.getcwd(), path),
-        os.path.join(os.path.dirname(__file__), "..", path),
+        os.path.join(os.path.dirname(__file__), '..', path),
         os.path.join(os.path.dirname(__file__), path),
-        os.path.join("uploads", os.path.basename(path)),
-        os.path.join("..", "uploads", os.path.basename(path)),
-        os.path.join(r"C:\Users\zuhaj\.gemini\antigravity\scratch\uploads", os.path.basename(path)),
+        os.path.join('uploads', os.path.basename(path)),
+        os.path.join('..', 'uploads', os.path.basename(path)),
     ]
     for c in candidates:
         if os.path.isfile(c):
             return c
     return path
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Body
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
-from backend import models, schemas, database, ocr, security as auth_security
-import datetime
-from sqlalchemy import select
-import os
-import shutil
-import re
+from backend import models, schemas, database, ocr, security as auth_security, llm
 
-app = FastAPI()
-import os
-from backend import llm
-import shutil
-import re
+app = FastAPI(title='Veriflow API')
 
-
-UPLOAD_DIR = "../uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-@app.on_event("startup")
+@app.on_event('startup')
 def startup():
     from backend import models, database, security as auth_security
     from sqlalchemy import text
-    models.Base.metadata.create_all(bind=database.engine)
+    try:
+        models.Base.metadata.create_all(bind=database.engine)
+    except Exception as e:
+        print('create_all notice:', e)
+
     try:
         with database.engine.connect() as conn:
-            result = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+            result = conn.execute(text('PRAGMA table_info(users)')).fetchall()
             column_names = [row[1] for row in result]
-            if "password_hash" not in column_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR"))
+            if 'password_hash' not in column_names:
+                conn.execute(text('ALTER TABLE users ADD COLUMN password_hash VARCHAR'))
                 conn.commit()
     except Exception as e:
-        print("Table migration notice:", e)
+        print('Table migration notice:', e)
 
     if not auth_security.IS_PROD:
         db = database.SessionLocal()
         try:
             demo_hash = auth_security.hash_password(auth_security.DEMO_PASSWORD)
             users = db.query(models.User).all()
-            for u in users:
-                if not u.password_hash or not auth_security.verify_password(auth_security.DEMO_PASSWORD, u.password_hash):
-                    u.password_hash = demo_hash
+            if not users:
+                demo_specs = [
+                    ('alice_sub', 'Submitter'),
+                    ('bob_sub', 'Submitter'),
+                    ('charlie_rev', 'Reviewer'),
+                    ('david_rev', 'Reviewer'),
+                    ('eve_app', 'Approver'),
+                    ('frank_app', 'Approver'),
+                    ('alice', 'Submitter'),
+                    ('bob', 'Reviewer'),
+                ]
+                user_map = {}
+                for uname, urole in demo_specs:
+                    u = models.User(username=uname, role=urole, password_hash=demo_hash)
+                    db.add(u)
+                    db.flush()
+                    user_map[uname] = u
+
+                sub = user_map.get('alice_sub')
+                rev = user_map.get('charlie_rev')
+                if sub and rev:
+                    sample_claims = [
+                        {'type': 'Travel', 'status': 'Under Review', 'amount': 150.00, 'merchant': 'Metro Transit', 'desc': 'Client site visit travel expenses'},
+                        {'type': 'Meals', 'status': 'Under Review', 'amount': 85.50, 'merchant': 'Corner Cafe', 'desc': 'Team lunch during quarterly planning'},
+                        {'type': 'Supplies', 'status': 'More Information Required', 'amount': 120.00, 'merchant': 'Office Mart', 'desc': 'Project stationery and markers'},
+                        {'type': 'Travel', 'status': 'Approved', 'amount': 45.00, 'merchant': 'City Cab', 'desc': 'Airport transfer cab ride'},
+                        {'type': 'Meals', 'status': 'Draft', 'amount': 34.00, 'merchant': 'Bistro Express', 'desc': 'Working dinner during release'},
+                    ]
+                    for s in sample_claims:
+                        req = models.Request(
+                            submitter_id=sub.id,
+                            assigned_reviewer_id=rev.id if s['status'] in ['Under Review', 'More Information Required'] else None,
+                            type=s['type'],
+                            category='General',
+                            status=s['status'],
+                            expense_amount=s['amount'],
+                            merchant_name=s['merchant'],
+                            expense_date=datetime.date.today(),
+                            description=s['desc']
+                        )
+                        db.add(req)
+                        db.flush()
+                        log_audit(db, req.id, sub.id, 'create', 'None', 'Draft')
+                        if s['status'] != 'Draft':
+                            log_audit(db, req.id, sub.id, 'submit', 'Draft', 'Submitted')
+                            log_audit(db, req.id, rev.id, 'start_process', 'Submitted', s['status'], 'Automated verification initiated')
+                        if s['status'] == 'More Information Required':
+                            log_audit(db, req.id, rev.id, 'request_correction', 'Under Review', 'More Information Required', 'Receipt image is blurry. Please upload a clear scan.')
+                            db.add(models.Comment(request_id=req.id, user_id=rev.id, text='Receipt image is blurry. Please upload a clear scan.'))
+                        elif s['status'] == 'Approved':
+                            log_audit(db, req.id, rev.id, 'approve', 'Under Review', 'Approved', 'All details verified against receipt.')
+                            db.add(models.Comment(request_id=req.id, user_id=rev.id, text='[Approved] All details verified against receipt.'))
+            else:
+                for u in users:
+                    if not u.password_hash or not auth_security.verify_password(auth_security.DEMO_PASSWORD, u.password_hash):
+                        u.password_hash = demo_hash
             db.commit()
         except Exception as e:
-            print("Demo password seed notice:", e)
+            print('Demo seed notice:', e)
         finally:
             db.close()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5175",
-    ],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origins=['*'],
+    allow_origin_regex=r'https?://.*',
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
 security = HTTPBearer()
