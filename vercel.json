@@ -3,14 +3,8 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "functions": {
-    "api/*.py": {
-      "includeFiles": "{backend/**,data/**,frontend/dist/**}"
-    },
     "api/index.py": {
-      "includeFiles": "{backend/**,data/**,frontend/dist/**}"
-    },
-    "main.py": {
-      "includeFiles": "{backend/**,data/**,frontend/dist/**}"
+      "includeFiles": "backend/**"
     }
   },
   "rewrites": [
