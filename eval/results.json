@@ -1,121 +1,165 @@
 {
   "dataset_used": "SROIE datasetv2 (Subset)",
   "total_documents": 20,
-  "failed_unreadable": 20,
+  "failed_unreadable": 0,
   "fields": {
     "merchant": {
-      "exact": 0,
-      "normalized": 0
+      "exact": 9,
+      "normalized": 2
     },
     "date": {
       "exact": 0,
-      "normalized": 0
+      "normalized": 14
     },
     "amount": {
-      "exact": 0,
+      "exact": 11,
       "normalized": 0
     }
   },
   "error_cases": [
     {
-      "document_id": "X00016469670",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
-    },
-    {
-      "document_id": "X00016469671",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "document_id": "X51005200931",
+      "error_type": "wrong merchant",
+      "expected": "PERNIAGAAN ZHENG HUI",
+      "extracted": "PERNIAGAAN ZHENG HU"
     },
     {
       "document_id": "X51005200931",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong date",
+      "expected": "09/02/2018",
+      "extracted": "Unknown"
     },
     {
-      "document_id": "X51005230605",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
-    },
-    {
-      "document_id": "X51005230616",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "document_id": "X51005200931",
+      "error_type": "wrong amount",
+      "expected": "436.20",
+      "extracted": "411.50"
     },
     {
       "document_id": "X51005230621",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "SIN LIANHAP SDN BHD",
+      "extracted": "Company Req No: 264922-D"
+    },
+    {
+      "document_id": "X51005230621",
+      "error_type": "wrong date",
+      "expected": "05/02/2018",
+      "extracted": "2018-02-08"
     },
     {
       "document_id": "X51005230648",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong amount",
+      "expected": "6.35",
+      "extracted": "6.36"
     },
     {
       "document_id": "X51005230657",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "CROSS CHANNEL NETWORK SDN. BHD.",
+      "extracted": "CROSS CHANNEL NE/WORK SDN. BHD"
     },
     {
       "document_id": "X51005230659",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
-    },
-    {
-      "document_id": "X51005268275",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong date",
+      "expected": "08/01/2018",
+      "extracted": "2018-01-06"
     },
     {
       "document_id": "X51005268408",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "99 SPEED MART S/B",
+      "extracted": "99 SPEED MART S/B {S$9S37-K"
+    },
+    {
+      "document_id": "X51005268408",
+      "error_type": "wrong amount",
+      "expected": "169.80",
+      "extracted": "160.47"
     },
     {
       "document_id": "X51005288570",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "SECURE PARKING CORPORATION S/B",
+      "extracted": "CORPORATION S/B"
     },
     {
-      "document_id": "X51005301666",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "document_id": "X51005288570",
+      "error_type": "wrong date",
+      "expected": "23.03.18",
+      "extracted": "2018-03-23"
     },
     {
       "document_id": "X51005337867",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "OLD TOWN KOPITAM SND BHD",
+      "extracted": "OLDTOWN WHITE COFFEE"
+    },
+    {
+      "document_id": "X51005337867",
+      "error_type": "wrong amount",
+      "expected": "30.25",
+      "extracted": "30.24"
     },
     {
       "document_id": "X51005337877",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong amount",
+      "expected": "53.00",
+      "extracted": "93.00"
     },
     {
       "document_id": "X51005361906",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "TED HENG STATIONERY & BOOKS",
+      "extracted": "TED HENG STATI"
+    },
+    {
+      "document_id": "X51005361906",
+      "error_type": "wrong date",
+      "expected": "27/01/2018",
+      "extracted": "Unknown"
+    },
+    {
+      "document_id": "X51005361906",
+      "error_type": "wrong amount",
+      "expected": "27.35",
+      "extracted": "25.80"
     },
     {
       "document_id": "X51005361908",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "TEO HENG STATIONERY & BOOKS",
+      "extracted": "RMD"
+    },
+    {
+      "document_id": "X51005361908",
+      "error_type": "wrong date",
+      "expected": "15/03/2018",
+      "extracted": "2018-03-16"
+    },
+    {
+      "document_id": "X51005361908",
+      "error_type": "wrong amount",
+      "expected": "127.20",
+      "extracted": "420.00"
     },
     {
       "document_id": "X51005361912",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong merchant",
+      "expected": "TEO HENG STATIONERY & BOOKS",
+      "extracted": "TEO HENG STATIONERY 6 BOOKS"
     },
     {
-      "document_id": "X51005361923",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "document_id": "X51005361912",
+      "error_type": "wrong amount",
+      "expected": "1.05",
+      "extracted": "1.00"
     },
     {
       "document_id": "X51005365187",
-      "error_type": "document processing failure",
-      "reason": "tesseract is not installed or it's not in your PATH. See README file for more information."
+      "error_type": "wrong amount",
+      "expected": "31.90",
+      "extracted": "30.68"
     }
   ]
 }

@@ -1,8 +1,26 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+def resolve_filepath(path: str) -> str:
+    if os.path.isfile(path):
+        return path
+    candidates = [
+        os.path.abspath(path),
+        os.path.join(os.getcwd(), path),
+        os.path.join(os.path.dirname(__file__), "..", path),
+        os.path.join(os.path.dirname(__file__), path),
+        os.path.join("uploads", os.path.basename(path)),
+        os.path.join("..", "uploads", os.path.basename(path)),
+        os.path.join(r"C:\Users\zuhaj\.gemini\antigravity\scratch\uploads", os.path.basename(path)),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return path
+
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from backend import models, schemas, database, ocr
+from typing import Optional, List, Dict, Any
+from backend import models, schemas, database, ocr, security as auth_security
 import datetime
 from sqlalchemy import select
 import os
@@ -21,8 +39,32 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.on_event("startup")
 def startup():
-    from backend import models, database
+    from backend import models, database, security as auth_security
+    from sqlalchemy import text
     models.Base.metadata.create_all(bind=database.engine)
+    try:
+        with database.engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+            column_names = [row[1] for row in result]
+            if "password_hash" not in column_names:
+                conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR"))
+                conn.commit()
+    except Exception as e:
+        print("Table migration notice:", e)
+
+    if not auth_security.IS_PROD:
+        db = database.SessionLocal()
+        try:
+            demo_hash = auth_security.hash_password(auth_security.DEMO_PASSWORD)
+            users = db.query(models.User).all()
+            for u in users:
+                if not u.password_hash or not auth_security.verify_password(auth_security.DEMO_PASSWORD, u.password_hash):
+                    u.password_hash = demo_hash
+            db.commit()
+        except Exception as e:
+            print("Demo password seed notice:", e)
+        finally:
+            db.close()
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,11 +115,21 @@ def log_audit(db: Session, request_id: int, actor_id: int, action: str, old_stat
     db.commit()
 
 @app.post("/users/", response_model=schemas.UserOut)
-def create_user(user: schemas.UserBase, db: Session = Depends(get_db)):
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if db_user:
+        if user.password:
+            db_user.password_hash = auth_security.hash_password(user.password)
+            db.commit()
+            db.refresh(db_user)
+        elif not db_user.password_hash and not auth_security.IS_PROD:
+            db_user.password_hash = auth_security.hash_password(auth_security.DEMO_PASSWORD)
+            db.commit()
+            db.refresh(db_user)
         return db_user
-    db_user = models.User(username=user.username, role=user.role)
+    pwd = user.password or (auth_security.DEMO_PASSWORD if not auth_security.IS_PROD else None)
+    pwd_hash = auth_security.hash_password(pwd) if pwd else None
+    db_user = models.User(username=user.username, role=user.role, password_hash=pwd_hash)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -140,10 +192,39 @@ def run_verifications(db: Session, req_id: int):
     else:
         db.add(models.VerificationCheck(request_id=req.id, rule_name="Required Document", category="valid", evidence=f"{len(docs)} document(s) attached", result="PASS"))
         
-    if req.expense_amount is None or req.merchant_name is None or req.expense_date is None:
+    if (req.expense_amount is None or req.expense_amount <= 0 or
+        req.merchant_name is None or not str(req.merchant_name).strip() or
+        req.expense_date is None):
         db.add(models.VerificationCheck(request_id=req.id, rule_name="Required Field", category="missing", evidence="Required fields missing", result="CANNOT DETERMINE"))
     else:
         db.add(models.VerificationCheck(request_id=req.id, rule_name="Required Field", category="valid", evidence="All required fields provided", result="PASS"))
+
+    if docs:
+        has_ocr_failure = False
+        failure_messages = []
+        for doc in docs:
+            latest_ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == doc.id).order_by(models.DocumentVersion.version_number.desc()).first()
+            if latest_ver and latest_ver.processing_state == "Failed":
+                has_ocr_failure = True
+                latest_run = db.query(models.ExtractionRun).filter(models.ExtractionRun.document_version_id == latest_ver.id).order_by(models.ExtractionRun.id.desc()).first()
+                err = latest_run.error_message if (latest_run and latest_run.error_message) else "OCR extraction failed"
+                failure_messages.append(f"{doc.original_filename} (v{latest_ver.version_number}): {err}")
+        if has_ocr_failure:
+            db.add(models.VerificationCheck(
+                request_id=req.id,
+                rule_name="Document Readability",
+                category="unreadable",
+                evidence="; ".join(failure_messages),
+                result="CANNOT DETERMINE"
+            ))
+        else:
+            db.add(models.VerificationCheck(
+                request_id=req.id,
+                rule_name="Document Readability",
+                category="valid",
+                evidence="Document text extracted successfully",
+                result="PASS"
+            ))
 
         
     ext_amounts = []
@@ -195,6 +276,19 @@ def run_verifications(db: Session, req_id: int):
             else:
                 db.add(models.VerificationCheck(request_id=req.id, rule_name="Amount Consistency", category="inconsistent", evidence=f"Form amount {req.expense_amount} does not match any document amounts.", result="INCONSISTENT"))
                 
+        # Policy rule: Unusual / High-value amount warning (non-blocking warning requiring manager sign-off)
+        try:
+            if float(req.expense_amount) > 5000.0:
+                db.add(models.VerificationCheck(
+                    request_id=req.id,
+                    rule_name="High Value Policy",
+                    category="unusual_amount",
+                    evidence=f"Claim amount ${float(req.expense_amount):.2f} exceeds standard $5,000 threshold. Flagged for elevated reviewer approval.",
+                    result="WARNING"
+                ))
+        except (ValueError, TypeError):
+            pass
+                
     if req.expense_date is not None:
         if not ext_dates:
             db.add(models.VerificationCheck(request_id=req.id, rule_name="Date Consistency", category="unreadable", evidence="No valid dates extracted from documents to compare.", result="CANNOT DETERMINE"))
@@ -215,14 +309,24 @@ def run_verifications(db: Session, req_id: int):
         if not ext_merchants:
             db.add(models.VerificationCheck(request_id=req.id, rule_name="Merchant Consistency", category="unreadable", evidence="No valid merchants extracted from documents to compare.", result="CANNOT DETERMINE"))
         else:
+            import difflib
             norm_req = normalize_merchant(req.merchant_name)
             match_ev = None
+            spelling_match = None
             for m_val, ev in ext_merchants:
-                if normalize_merchant(m_val) == norm_req:
+                norm_doc = normalize_merchant(m_val)
+                if norm_doc == norm_req:
                     match_ev = ev
                     break
+                else:
+                    ratio = difflib.SequenceMatcher(None, norm_req, norm_doc).ratio()
+                    if ratio >= 0.65 and not spelling_match:
+                        spelling_match = (m_val, ev, ratio)
             if match_ev:
                 db.add(models.VerificationCheck(request_id=req.id, rule_name="Merchant Consistency", category="valid", evidence=f"Submitted merchant matches {match_ev}.", result="PASS"))
+            elif spelling_match:
+                m_val, ev, ratio = spelling_match
+                db.add(models.VerificationCheck(request_id=req.id, rule_name="Merchant Consistency", category="spelling_mismatch", evidence=f"Possible spelling mistake or typo in merchant name: Form specifies '{req.merchant_name}', but {ev} shows '{m_val}' (similarity: {ratio:.0%}).", result="WARNING"))
             else:
                 db.add(models.VerificationCheck(request_id=req.id, rule_name="Merchant Consistency", category="inconsistent", evidence=f"Form merchant '{req.merchant_name}' does not match any document merchants.", result="INCONSISTENT"))
                 
@@ -287,7 +391,7 @@ def update_request(req_id: int, req_update: schemas.RequestUpdate, current_user:
 
 
 @app.post("/requests/{req_id}/submit")
-def submit_request(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def submit_request(req_id: int, req_update: Optional[schemas.RequestUpdate] = Body(None), current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_req = db.query(models.Request).filter(models.Request.id == req_id).first()
     if not db_req:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -298,18 +402,35 @@ def submit_request(req_id: int, current_user: models.User = Depends(get_current_
     if db_req.status != "Draft":
         raise HTTPException(status_code=400, detail="Only Draft requests can be submitted")
         
-    if db_req.expense_amount is None or db_req.merchant_name is None or db_req.expense_date is None:
-        raise HTTPException(status_code=400, detail="Must provide expense_amount, merchant_name, and expense_date to submit.")
+    if req_update is not None:
+        update_data = req_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_req, key, value)
+        db.commit()
+        db.refresh(db_req)
+        run_verifications(db, db_req.id)
+
+    missing = []
+    if db_req.merchant_name is None or not str(db_req.merchant_name).strip():
+        missing.append("merchant_name")
+    if db_req.expense_date is None:
+        missing.append("expense_date")
+    if db_req.expense_amount is None or db_req.expense_amount <= 0:
+        missing.append("expense_amount")
+
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Must provide expense_amount, merchant_name, and expense_date to submit. Missing or invalid: {', '.join(missing)}")
         
     log_audit(db, db_req.id, current_user.id, "submit", db_req.status, "Submitted")
     db_req.status = "Submitted"
     db.commit()
+    db.refresh(db_req)
     return {"status": "success", "new_status": "Submitted"}
 
 
 @app.post("/requests/{req_id}/upload")
 def upload_document(req_id: int, file: UploadFile = File(...), current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if not file.filename.lower().endswith(('.pdf', '.png', '.jpg', '.jpeg')):
+    if not file.filename.lower().endswith(('.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp', '.webp')):
         raise HTTPException(status_code=400, detail="Unsupported file type")
         
     file.file.seek(0, 2)
@@ -347,10 +468,84 @@ def upload_document(req_id: int, file: UploadFile = File(...), current_user: mod
     db.add(doc_ver)
     db.commit()
     db.refresh(doc_ver)
+
+    # Automatic OCR & Document Text Extraction
+    run = models.ExtractionRun(document_version_id=doc_ver.id, engine="pytesseract_pdfplumber", status="Running")
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    try:
+        extracted = ocr.extract_fields(file_path)
+        if "engine" in extracted:
+            run.engine = extracted["engine"]
+        for k, v in extracted.items():
+            ext_f = models.ExtractedField(extraction_run_id=run.id, field_name=k, original_value=str(v))
+            db.add(ext_f)
+        run.status = "Completed"
+        run.completed_at = datetime.datetime.now(datetime.UTC)
+        doc_ver.processing_state = "Completed"
+    except Exception as e:
+        run.status = "Failed"
+        run.error_message = str(e)
+        run.completed_at = datetime.datetime.now(datetime.UTC)
+        doc_ver.processing_state = "Failed"
+
+    db.commit()
+
+    # Automatically run verification checks
+    run_verifications(db, req.id)
     
     log_audit(db, req.id, current_user.id, "upload_document", req.status, req.status, f"Uploaded {file.filename} v{doc.current_version}")
     db.commit()
-    return {"message": "File uploaded", "version_id": doc_ver.id}
+    return {"message": "File uploaded", "version_id": doc_ver.id, "processing_state": doc_ver.processing_state}
+
+@app.post("/requests/{req_id}/retry-ocr")
+def retry_ocr(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    req = db.query(models.Request).filter(models.Request.id == req_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    if current_user.role == "Submitter" and req.submitter_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    docs = db.query(models.Document).filter(models.Document.request_id == req_id).all()
+    if not docs:
+        raise HTTPException(status_code=400, detail="No documents attached to retry")
+        
+    processed_count = 0
+    errors = []
+    for doc in docs:
+        latest_ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == doc.id).order_by(models.DocumentVersion.version_number.desc()).first()
+        if not latest_ver:
+            continue
+        run = models.ExtractionRun(document_version_id=latest_ver.id, engine="pytesseract_pdfplumber", status="Running")
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+        try:
+            extracted = ocr.extract_fields(latest_ver.filepath)
+            if "engine" in extracted:
+                run.engine = extracted["engine"]
+            for k, v in extracted.items():
+                ext_f = models.ExtractedField(extraction_run_id=run.id, field_name=k, original_value=str(v))
+                db.add(ext_f)
+            run.status = "Completed"
+            run.completed_at = datetime.datetime.now(datetime.UTC)
+            latest_ver.processing_state = "Completed"
+            processed_count += 1
+        except Exception as e:
+            run.status = "Failed"
+            run.error_message = str(e)
+            run.completed_at = datetime.datetime.now(datetime.UTC)
+            latest_ver.processing_state = "Failed"
+            errors.append(str(e))
+            
+    db.commit()
+    run_verifications(db, req.id)
+    if errors:
+        return {"status": "failed", "error": "; ".join(errors)}
+    return {"status": "success", "processed_count": processed_count}
 
 @app.post("/requests/{req_id}/process")
 def process_request(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -373,6 +568,8 @@ def process_request(req_id: int, current_user: models.User = Depends(get_current
         db.commit()
         raise HTTPException(status_code=400, detail="No documents attached")
         
+    has_completed_doc = False
+    has_failed_doc = False
     for doc in docs:
         latest_ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == doc.id).order_by(models.DocumentVersion.version_number.desc()).first()
         if latest_ver and latest_ver.processing_state == "Pending":
@@ -382,22 +579,32 @@ def process_request(req_id: int, current_user: models.User = Depends(get_current
             db.refresh(run)
             try:
                 extracted = ocr.extract_fields(latest_ver.filepath)
+                if "engine" in extracted:
+                    run.engine = extracted["engine"]
                 for k, v in extracted.items():
                     ext_f = models.ExtractedField(extraction_run_id=run.id, field_name=k, original_value=str(v))
                     db.add(ext_f)
                 run.status = "Completed"
                 run.completed_at = datetime.datetime.now(datetime.UTC)
                 latest_ver.processing_state = "Completed"
+                has_completed_doc = True
             except Exception as e:
                 run.status = "Failed"
                 run.error_message = str(e)
                 run.completed_at = datetime.datetime.now(datetime.UTC)
                 latest_ver.processing_state = "Failed"
-                req.status = "Processing Failed"
-                log_audit(db, req.id, current_user.id, "process_fail", "Processing", "Processing Failed", str(e))
-                db.commit()
-                return {"status": "Processing Failed"}
+                has_failed_doc = True
+        elif latest_ver and latest_ver.processing_state == "Completed":
+            has_completed_doc = True
+        elif latest_ver and latest_ver.processing_state == "Failed":
+            has_failed_doc = True
     db.commit()
+
+    if has_failed_doc and not has_completed_doc:
+        req.status = "Processing Failed"
+        log_audit(db, req.id, current_user.id, "process_fail", "Processing", "Processing Failed", "No valid documents could be processed")
+        db.commit()
+        return {"status": "Processing Failed"}
     
     run_verifications(db, req.id)
             
@@ -420,29 +627,41 @@ def review_request(req_id: int, action: schemas.ReviewAction, current_user: mode
         
     if req.status not in ["Under Review", "Processing Failed"]:
         raise HTTPException(status_code=400, detail=f"Cannot review request in status {req.status}")
+
+    if action.action not in ["approve", "reject", "request_correction"]:
+        raise HTTPException(status_code=400, detail=f"Invalid action: {action.action}. Allowed actions: approve, reject, request_correction")
+        
+    clean_reason = action.reason.strip() if action.reason else ""
+    if action.action in ["reject", "request_correction"] and not clean_reason:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A reason or explanation is required when {action.action.replace('_', ' ')}ing a claim."
+        )
         
     old_status = req.status
     if action.action == "approve":
         if old_status == "Processing Failed":
             raise HTTPException(status_code=400, detail="Cannot approve a request that failed processing")
         req.status = "Approved"
+        if clean_reason:
+            comment = models.Comment(request_id=req.id, user_id=current_user.id, text=f"[Approved] {clean_reason}")
+            db.add(comment)
     elif action.action == "reject":
         req.status = "Rejected"
+        comment = models.Comment(request_id=req.id, user_id=current_user.id, text=f"[Rejected] {clean_reason}")
+        db.add(comment)
     elif action.action == "request_correction":
         req.status = "More Information Required"
-        if action.reason:
-            draft = llm.generate_correction_draft({}, action.reason)
-            comment = models.Comment(request_id=req.id, user_id=current_user.id, text=draft)
-            db.add(comment)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid action")
+        draft = llm.generate_correction_draft({}, clean_reason)
+        comment = models.Comment(request_id=req.id, user_id=current_user.id, text=draft)
+        db.add(comment)
             
-    log_audit(db, req.id, current_user.id, action.action, old_status, req.status, action.reason)
+    log_audit(db, req.id, current_user.id, action.action, old_status, req.status, clean_reason if clean_reason else None)
     db.commit()
     return {"status": req.status}
 
 @app.post("/requests/{req_id}/resubmit")
-def resubmit_request(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def resubmit_request(req_id: int, req_update: Optional[schemas.RequestUpdate] = Body(None), current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     req = db.query(models.Request).filter(models.Request.id == req_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -453,14 +672,31 @@ def resubmit_request(req_id: int, current_user: models.User = Depends(get_curren
     if req.status != "More Information Required":
         raise HTTPException(status_code=400, detail=f"Cannot resubmit request in status {req.status}")
         
-    if req.expense_amount is None or req.merchant_name is None or req.expense_date is None:
-        raise HTTPException(status_code=400, detail="Must provide expense_amount, merchant_name, and expense_date to resubmit.")
+    if req_update is not None:
+        update_data = req_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(req, key, value)
+        db.commit()
+        db.refresh(req)
+        run_verifications(db, req.id)
+
+    missing = []
+    if req.merchant_name is None or not str(req.merchant_name).strip():
+        missing.append("merchant_name")
+    if req.expense_date is None:
+        missing.append("expense_date")
+    if req.expense_amount is None or req.expense_amount <= 0:
+        missing.append("expense_amount")
+
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Must provide expense_amount, merchant_name, and expense_date to resubmit. Missing or invalid: {', '.join(missing)}")
         
     old_status = req.status
     req.status = "Submitted"
     log_audit(db, req.id, current_user.id, "resubmit", old_status, req.status)
     db.commit()
-    return {"status": "Submitted"}
+    db.refresh(req)
+    return {"status": "Submitted", "new_status": "Submitted"}
 
 @app.post("/requests/{req_id}/withdraw")
 def withdraw_request(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -612,29 +848,60 @@ def ask_genai(req_id: int, q: schemas.AskQuestion, current_user: models.User = D
         raise HTTPException(status_code=403, detail="No permission to view this request")
         
     docs = db.query(models.Document).filter(models.Document.request_id == req.id).all()
-    latest_versions = []
-    for d in docs:
-        ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == d.id).order_by(models.DocumentVersion.version_number.desc()).first()
-        if ver: latest_versions.append(ver.version_number)
-
     verifications = db.query(models.VerificationCheck).filter(models.VerificationCheck.request_id == req.id).all()
-    failed_checks = [v.rule_name for v in verifications if v.result != "PASS"]
-
     mir_log = db.query(models.AuditLog).filter(models.AuditLog.request_id == req_id, models.AuditLog.action == "request_correction").order_by(models.AuditLog.timestamp.desc()).first()
     mir_reason = mir_log.reason if mir_log else None
 
     if not docs and not verifications and not mir_reason:
         return {"answer": "Insufficient evidence in the current request."}
 
-    explanation = f"Request {req.id} is currently '{req.status}'. "
-    if latest_versions:
-        explanation += f"It has documents (latest versions: {latest_versions}). "
-    if failed_checks:
-        explanation += f"It has failed verification checks: {', '.join(failed_checks)}. "
-    if mir_reason:
-        explanation += f"A reviewer requested correction with reason: '{mir_reason}'. "
+    doc_details = []
+    extractions = []
+    for d in docs:
+        versions = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == d.id).order_by(models.DocumentVersion.version_number.desc()).all()
+        doc_details.append({
+            "id": d.id,
+            "original_filename": d.original_filename,
+            "versions": [{"version_number": v.version_number, "processing_state": v.processing_state} for v in versions]
+        })
+        if versions:
+            run = db.query(models.ExtractionRun).filter(models.ExtractionRun.document_version_id == versions[0].id).order_by(models.ExtractionRun.id.desc()).first()
+            if run:
+                for f in run.extractions:
+                    extractions.append({
+                        "field_name": f.field_name,
+                        "original_value": f.original_value,
+                        "corrected_value": f.corrected_value
+                    })
 
-    return {"answer": explanation.strip()}
+    verifs_data = [{
+        "rule_name": v.rule_name,
+        "category": v.category,
+        "result": v.result,
+        "evidence": v.evidence
+    } for v in verifications]
+
+    req_data = {
+        "id": req.id,
+        "type": req.type,
+        "status": req.status,
+        "merchant_name": req.merchant_name,
+        "expense_date": str(req.expense_date) if req.expense_date else None,
+        "expense_amount": req.expense_amount,
+        "category": req.category,
+        "description": req.description,
+        "reviewer_reason": mir_reason
+    }
+
+    answer = llm.explain_request_findings(
+        req_data=req_data,
+        documents_data=doc_details,
+        extractions_data=extractions,
+        verifications_data=verifs_data,
+        user_question=q.question
+    )
+
+    return {"answer": answer}
 
 
 
@@ -648,11 +915,40 @@ def ask_genai(req_id: int, q: schemas.AskQuestion, current_user: models.User = D
 
 from fastapi import Form
 @app.post("/token")
-def login_for_access_token(username: str = Form(...), db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == username).first()
+def login_for_access_token(
+    username: str = Form(...),
+    password: Optional[str] = Form(None),
+    role: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    clean_username = username.strip() if username else ""
+    if not clean_username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    user = db.query(models.User).filter(models.User.username == clean_username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"access_token": str(user.id), "token_type": "bearer", "role": user.role, "username": user.username}
+
+    if role and user.role != role:
+        raise HTTPException(status_code=400, detail=f"Role mismatch: account '{user.username}' is a {user.role}, but {role} was selected")
+
+    if not password or not password.strip():
+        raise HTTPException(status_code=400, detail="Password is required")
+
+    if not user.password_hash and not auth_security.IS_PROD:
+        user.password_hash = auth_security.hash_password(auth_security.DEMO_PASSWORD)
+        db.commit()
+        db.refresh(user)
+
+    if not user.password_hash or not auth_security.verify_password(password.strip(), user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    return {
+        "access_token": str(user.id),
+        "token_type": "bearer",
+        "role": user.role,
+        "username": user.username
+    }
 @app.get("/requests/{req_id}/details")
 def get_request_details(req_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_req = db.query(models.Request).filter(models.Request.id == req_id).first()
@@ -667,29 +963,68 @@ def get_request_details(req_id: int, current_user: models.User = Depends(get_cur
     doc_details = []
     for d in docs:
         versions = db.query(models.DocumentVersion).filter(models.DocumentVersion.document_id == d.id).order_by(models.DocumentVersion.version_number.desc()).all()
+        v_list = []
+        for v in versions:
+            run = db.query(models.ExtractionRun).filter(models.ExtractionRun.document_version_id == v.id).order_by(models.ExtractionRun.id.desc()).first()
+            v_list.append({
+                "id": v.id,
+                "version_number": v.version_number,
+                "processing_state": v.processing_state,
+                "uploaded_at": v.timestamp.isoformat() if v.timestamp else None,
+                "error_message": run.error_message if run and run.error_message else None
+            })
         doc_details.append({
             "id": d.id,
             "original_filename": d.original_filename,
-            "versions": [{"id": v.id, "version_number": v.version_number, "processing_state": v.processing_state, "uploaded_at": v.timestamp.isoformat() if v.timestamp else None} for v in versions]
+            "versions": v_list
         })
         
     verifications = db.query(models.VerificationCheck).filter(models.VerificationCheck.request_id == req_id).all()
     
     extractions = []
-    # get extractions for latest run of each doc
+    document_extractions = []
+    # get extractions for latest run of each doc, preserving per-document association
     for d in doc_details:
         if d["versions"]:
-            latest_v_id = d["versions"][0]["id"]
+            latest_v = d["versions"][0]
+            latest_v_id = latest_v["id"]
             run = db.query(models.ExtractionRun).filter(models.ExtractionRun.document_version_id == latest_v_id).order_by(models.ExtractionRun.id.desc()).first()
+            doc_fields = []
             if run:
                 fields = db.query(models.ExtractedField).filter(models.ExtractedField.extraction_run_id == run.id).all()
                 for f in fields:
-                    extractions.append({
+                    conf_val = None
+                    try:
+                        if f.confidence is not None and float(f.confidence) > 0.0:
+                            conf_val = float(f.confidence)
+                    except (ValueError, TypeError):
+                        pass
+
+                    field_dict = {
                         "id": f.id,
                         "field_name": f.field_name,
                         "original_value": f.original_value,
-                        "corrected_value": f.corrected_value
-                    })
+                        "corrected_value": f.corrected_value,
+                        "confidence": conf_val,
+                        "document_id": d["id"],
+                        "document_filename": d["original_filename"],
+                        "version_number": latest_v["version_number"],
+                        "version_id": latest_v_id,
+                        "engine": run.engine
+                    }
+                    extractions.append(field_dict)
+                    doc_fields.append(field_dict)
+
+            document_extractions.append({
+                "document_id": d["id"],
+                "document_filename": d["original_filename"],
+                "version_number": latest_v["version_number"],
+                "version_id": latest_v_id,
+                "engine": run.engine if run else None,
+                "processing_state": latest_v["processing_state"],
+                "error_message": latest_v.get("error_message"),
+                "fields": doc_fields
+            })
 
     # Fetch comments for the request, most recent first
     comments = db.query(models.Comment).filter(models.Comment.request_id == req_id).order_by(models.Comment.timestamp.desc()).all()
@@ -724,9 +1059,20 @@ def get_request_details(req_id: int, current_user: models.User = Depends(get_cur
         "documents": doc_details,
         "verifications": [{"id": v.id, "rule_name": v.rule_name, "category": v.category, "evidence": v.evidence, "result": v.result} for v in verifications],
         "extractions": extractions,
+        "document_extractions": document_extractions,
         "history": [{"action": h.action, "from_status": h.from_status, "to_status": h.to_status, "timestamp": str(h.timestamp), "user_id": h.actor_id, "reason": h.reason} for h in history],
         "comments": [{"id": c.id, "user_id": c.user_id, "text": c.text, "timestamp": str(c.timestamp)} for c in comments],
         "information_required_reason": information_required_reason,
+        "missing_fields": (
+            ([{"field": "merchant_name", "location": "claim", "label": "Claim Merchant", "message": "Not filled in claim form"}] if (db_req.merchant_name is None or not str(db_req.merchant_name).strip()) else []) +
+            ([{"field": "expense_date", "location": "claim", "label": "Claim Date", "message": "Not filled in claim form"}] if db_req.expense_date is None else []) +
+            ([{"field": "expense_amount", "location": "claim", "label": "Claim Amount", "message": "Not filled in claim form"}] if (db_req.expense_amount is None or db_req.expense_amount <= 0) else []) +
+            [
+                {"field": "document_unreadable", "location": "document", "label": f"{d['original_filename']} (v{d['versions'][0]['version_number']})", "message": f"Document unreadable: {d['versions'][0].get('error_message') or 'OCR failed'}"}
+                for d in doc_details
+                if d.get("versions") and d["versions"][0].get("processing_state") == "Failed"
+            ]
+        )
     }
 from fastapi.responses import FileResponse
 
@@ -747,7 +1093,8 @@ def get_document_content(version_id: int, current_user: models.User = Depends(ge
     if not mime_type:
         mime_type = "application/octet-stream"
         
-    return FileResponse(doc_ver.filepath, media_type=mime_type, filename=doc.original_filename)
+    actual_path = resolve_filepath(doc_ver.filepath)
+    return FileResponse(actual_path, media_type=mime_type, filename=doc.original_filename)
 
 
 import json

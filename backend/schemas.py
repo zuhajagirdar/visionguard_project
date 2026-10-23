@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional, List
 from datetime import datetime
 import datetime as dt
@@ -6,6 +6,9 @@ import datetime as dt
 class UserBase(BaseModel):
     username: str
     role: str
+
+class UserCreate(UserBase):
+    password: Optional[str] = None
 
 class UserOut(UserBase):
     id: int
@@ -20,12 +23,50 @@ class RequestCreate(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = None
 
+    @field_validator('merchant_name')
+    @classmethod
+    def validate_merchant(cls, v):
+        if v is not None:
+            v_str = str(v).strip()
+            if not v_str:
+                raise ValueError('Merchant name cannot be empty')
+            return v_str
+        return v
+
+    @field_validator('expense_amount')
+    @classmethod
+    def validate_amount(cls, v):
+        if v is not None:
+            if v <= 0:
+                raise ValueError('Expense amount must be greater than zero')
+            return round(float(v), 2)
+        return v
+
 class RequestUpdate(BaseModel):
     expense_amount: Optional[float] = None
     merchant_name: Optional[str] = None
     expense_date: Optional[dt.date] = None
     category: Optional[str] = None
     description: Optional[str] = None
+
+    @field_validator('merchant_name')
+    @classmethod
+    def validate_merchant(cls, v):
+        if v is not None:
+            v_str = str(v).strip()
+            if not v_str:
+                raise ValueError('Merchant name cannot be empty')
+            return v_str
+        return v
+
+    @field_validator('expense_amount')
+    @classmethod
+    def validate_amount(cls, v):
+        if v is not None:
+            if v <= 0:
+                raise ValueError('Expense amount must be greater than zero')
+            return round(float(v), 2)
+        return v
 
 class RequestOut(BaseModel):
     id: int

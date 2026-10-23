@@ -40,9 +40,9 @@ def setup_teardown():
         shutil.rmtree("../uploads")
         os.makedirs("../uploads", exist_ok=True)
 
-def create_user_get_token(username, role):
-    user = client.post("/users/", json={"username": username, "role": role}).json()
-    token_res = client.post("/token", data={"username": username})
+def create_user_get_token(username, role, password="12345"):
+    user = client.post("/users/", json={"username": username, "role": role, "password": password}).json()
+    token_res = client.post("/token", data={"username": username, "password": password, "role": role})
     return token_res.json()["access_token"]
 
 def auth_header(token):
@@ -246,7 +246,7 @@ def test_rejection():
     rev_token = create_user_get_token("rev", "Reviewer")
     client.post(f"/requests/{req['id']}/process", headers=auth_header(rev_token))
     
-    res = client.post(f"/requests/{req['id']}/review", json={"reviewer_id": 0, "action": "reject"}, headers=auth_header(rev_token))
+    res = client.post(f"/requests/{req['id']}/review", json={"reviewer_id": 0, "action": "reject", "reason": "Expense violates reimbursement policy"}, headers=auth_header(rev_token))
     assert res.status_code == 200
     assert res.json()["status"] == "Rejected"
 
@@ -483,7 +483,7 @@ def test_retry_manual_review_after_processing_failure():
     
     client.post(f"/requests/{req['id']}/submit", headers=auth_header(sub_token))
     
-    # Process it - will fail
+    # Process it - will fail because document OCR failed
     res = client.post(f"/requests/{req['id']}/process", headers=auth_header(sub_token))
     assert res.json()["status"] == "Processing Failed"
     

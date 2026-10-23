@@ -8,6 +8,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     role = Column(String)
+    password_hash = Column(String, nullable=True)
 
 class Request(Base):
     __tablename__ = "requests"

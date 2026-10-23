@@ -1,13 +1,13 @@
 export const API_BASE = "http://localhost:8000";
 
 export const api = {
-  login: async (username, role) => {
+  login: async (username, role, password) => {
     if (role) {
       try {
         await fetch(API_BASE + "/users/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, role })
+          body: JSON.stringify({ username, role, password: password || "12345" })
         });
       } catch (err) {
         // proceed to token if user already exists
@@ -16,6 +16,12 @@ export const api = {
     
     const formData = new URLSearchParams();
     formData.append("username", username);
+    if (password) {
+      formData.append("password", password);
+    }
+    if (role) {
+      formData.append("role", role);
+    }
     
     const res = await fetch(API_BASE + "/token", {
       method: "POST",
@@ -74,7 +80,11 @@ export const api = {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   }),
-  submitRequest: (id) => api.fetchWithAuth("/requests/" + id + "/submit", { method: "POST" }),
+  submitRequest: (id, data = null) => api.fetchWithAuth("/requests/" + id + "/submit", {
+    method: "POST",
+    headers: data ? { "Content-Type": "application/json" } : undefined,
+    body: data ? JSON.stringify(data) : undefined
+  }),
   
   uploadDocument: async (id, file) => {
     const token = localStorage.getItem("access_token");
@@ -90,6 +100,7 @@ export const api = {
   },
   
   processRequest: (id) => api.fetchWithAuth("/requests/" + id + "/process", { method: "POST" }),
+  retryOcr: (id) => api.fetchWithAuth("/requests/" + id + "/retry-ocr", { method: "POST" }),
   
   getDocumentContent: async (versionId) => {
     const token = localStorage.getItem("access_token");
@@ -110,7 +121,11 @@ export const api = {
     method: "POST"
   }),
   withdrawRequest: (id) => api.fetchWithAuth("/requests/" + id + "/withdraw", { method: "POST" }),
-  resubmitRequest: (id) => api.fetchWithAuth("/requests/" + id + "/resubmit", { method: "POST" }),
+  resubmitRequest: (id, data = null) => api.fetchWithAuth("/requests/" + id + "/resubmit", {
+    method: "POST",
+    headers: data ? { "Content-Type": "application/json" } : undefined,
+    body: data ? JSON.stringify(data) : undefined
+  }),
   askGenAI: (id, question) => api.fetchWithAuth("/requests/" + id + "/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

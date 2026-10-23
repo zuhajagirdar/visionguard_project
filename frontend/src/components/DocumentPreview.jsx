@@ -29,12 +29,26 @@ export default function DocumentPreview({ versionId }) {
     };
   }, [versionId]);
 
-  if (loading) return <div className="animate-pulse bg-gray-200 h-96 rounded flex items-center justify-center">Loading preview...</div>;
-  if (error) return <div className="bg-red-50 text-red-600 h-96 rounded flex items-center justify-center border border-red-200">{error}</div>;
+  if (loading) {
+    return (
+      <div className="animate-pulse bg-gray-100 border border-gray-200 h-64 sm:h-80 md:h-96 rounded-xl flex items-center justify-center text-xs text-gray-500">
+        Loading document preview...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 text-red-600 h-64 sm:h-80 md:h-96 rounded-xl flex items-center justify-center border border-red-200 text-xs p-4 text-center">
+        {error}
+      </div>
+    );
+  }
+
   if (!url) return null;
 
   return (
-    <div className="border rounded bg-gray-50 h-96 overflow-hidden">
+    <div className="border border-gray-300 rounded-xl bg-gray-50 h-64 sm:h-80 md:h-96 overflow-hidden">
       <iframe src={url} className="w-full h-full" title="Document Preview" />
     </div>
   );

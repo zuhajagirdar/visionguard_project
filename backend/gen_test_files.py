@@ -1,13 +1,20 @@
-from PIL import Image, ImageDraw
-def create_valid_image(path):
-    img = Image.new('RGB', (400, 200), color = (255, 255, 255))
+from PIL import Image, ImageDraw, ImageFont
+
+def create_valid_image(path, merchant="Test Merchant", date="2026-10-01", total="150.00"):
+    img = Image.new('RGB', (800, 400), color=(255, 255, 255))
     d = ImageDraw.Draw(img)
-    d.text((10,10), "Test Merchant\\nDate: 2026-10-01\\nTotal: 150.00", fill=(0,0,0))
+    try:
+        font = ImageFont.truetype("arial.ttf", 32)
+    except Exception:
+        font = ImageFont.load_default()
+    text_lines = f"{merchant}\nDate: {date}\nTotal: {total}\n"
+    d.text((50, 50), text_lines, fill=(0, 0, 0), font=font)
     img.save(path)
-def create_valid_pdf(path):
+
+def create_valid_pdf(path, merchant="Test", date="2026-10-01", total="150.00"):
     from reportlab.pdfgen import canvas
     c = canvas.Canvas(path)
-    c.drawString(100, 750, "Test")
-    c.drawString(100, 735, "Date: 2026-10-01")
-    c.drawString(100, 720, "Total: 150.00")
+    c.drawString(100, 750, str(merchant))
+    c.drawString(100, 735, f"Date: {date}")
+    c.drawString(100, 720, f"Total: {total}")
     c.save()
