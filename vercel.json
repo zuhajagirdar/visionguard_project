@@ -4,10 +4,13 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/*.py": {
-      "includeFiles": "{backend/**,data/**}"
+      "includeFiles": "{backend/**,data/**,frontend/dist/**}"
     },
     "api/index.py": {
-      "includeFiles": "{backend/**,data/**}"
+      "includeFiles": "{backend/**,data/**,frontend/dist/**}"
+    },
+    "main.py": {
+      "includeFiles": "{backend/**,data/**,frontend/dist/**}"
     }
   },
   "rewrites": [
