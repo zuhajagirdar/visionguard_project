@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: visionguard
+    runtime: docker
+    plan: free
+    branch: deploy/render
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

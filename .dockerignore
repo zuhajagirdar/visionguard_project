@@ -1,0 +1,17 @@
+node_modules
+frontend/node_modules
+uploads
+*.db
+*.sqlite
+*.sqlite3
+.git
+__pycache__
+*/__pycache__
+*/*/__pycache__
+.env
+.pytest_cache
+backend/venv
+venv
+scripts/installers
+dist
+frontend/dist

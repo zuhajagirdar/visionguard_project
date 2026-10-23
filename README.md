@@ -465,6 +465,20 @@ Veriflow is pre-configured for automated deployment on **Vercel** via GitHub int
     - `GEMINI_API_KEY`: Google Gemini API key for online AI assistance.
     - `DATABASE_URL`: Optional PostgreSQL/Supabase database URL for persistent production storage.
 
+### 5. Deploy on Render (Docker)
+
+Veriflow includes a production-ready, multi-stage `Dockerfile` for automated container deployment on **Render**:
+
+1. Log in to [Render](https://dashboard.render.com/) and click **New +** -> **Web Service**.
+2. Connect your GitHub repository (`visionguard_project`).
+3. Select **Docker** as the Runtime (Render automatically detects the root `Dockerfile`).
+4. Choose your branch (e.g., `main`).
+5. **Environment Variables (Optional):**
+   - `PORT`: Automatically set by Render (defaults to `8000`).
+   - `GEMINI_API_KEY`: *(Optional)* Your Google Gemini API key for online AI assistance (falls back to offline suggestions if unset).
+   - `DATABASE_URL`: *(Optional)* External PostgreSQL/Supabase connection string (defaults to local SQLite `data/reimbursement.db` if unset).
+6. Click **Deploy Web Service**. Every future push to your connected branch will automatically trigger a zero-downtime redeployment.
+
 ---
 
 ## Demo Accounts & Development Credentials

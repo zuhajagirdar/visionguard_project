@@ -92,10 +92,10 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi.testclient import TestClient
-from main import app, run_verifications
-from database import Base
-from main import get_db
-import models
+# from main import app, run_verifications
+# from database import Base
+# from main import get_db
+# import models
 from tests.test_main import engine, TestingSessionLocal, create_user_get_token, auth_header
 from gen_test_files import create_valid_pdf
 

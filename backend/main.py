@@ -6,7 +6,9 @@ import re
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Body
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Body, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -137,6 +139,29 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+
+@app.middleware("http")
+async def api_prefix_middleware(request: Request, call_next):
+    path = request.scope.get("path", "")
+    accept = request.headers.get("accept", "")
+    auth = request.headers.get("authorization", "")
+    # If browser requests a frontend page directly via browser navigation/refresh
+    if "text/html" in accept and not auth and not path.startswith("/api") and not path.startswith("/assets") and path not in ["/docs", "/redoc", "/openapi.json"]:
+        index_file = os.path.join(dist_dir, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+    if path.startswith("/api/") and path != "/api/health":
+        request.scope["path"] = path[4:]
+    elif path == "/api":
+        request.scope["path"] = "/"
+    return await call_next(request)
+
+@app.get("/health")
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "service": "veriflow-backend"}
 
 security = HTTPBearer()
 
@@ -1226,3 +1251,24 @@ def get_corrections(req_id: int, current_user: models.User = Depends(get_current
         suggestions=suggestions,
         message=draft_msg
     )
+
+# Mount static frontend assets and SPA fallback if dist exists
+dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+if os.path.isdir(dist_dir):
+    assets_dir = os.path.join(dist_dir, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/")
+    @app.get("/{full_path:path}")
+    def serve_spa(full_path: str = ""):
+        if full_path.startswith("api/") or full_path in ["api", "docs", "redoc", "openapi.json", "health"]:
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = os.path.join(dist_dir, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        index_file = os.path.join(dist_dir, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Not Found")
+
